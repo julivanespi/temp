@@ -70,8 +70,8 @@
               "name": "[parameters('workspaces_log_anayltics_contraforce_name')]",
               "location": "Central US",
               "tags": {
-                "Environment": "Dev",
-                "Project": "Tutorial"
+                "Environment": "trail",
+                "Project": "ContraForce Iris"
               },
               "properties": {
                 "sku": {
