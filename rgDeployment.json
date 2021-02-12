@@ -1,0 +1,169 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "mspOfferName": {
+      "type": "string",
+      "metadata": {
+        "description": "Specify a unique name for your offer"
+      },
+      "defaultValue": "ContraForce Security Services"
+    },
+    "mspOfferDescription": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Managed Service Provider offering"
+      },
+      "defaultValue": "Manage all your deployments"
+    },
+    "rgName": {
+      "type": "string",
+      "defaultValue": "contraforce-rg",
+      "metadata": {
+        "description": "Specify a unique name for the resource group"
+      }
+    }
+  },
+  "variables": {
+    "mspRegistrationName": "[guid(parameters('mspOfferName'))]",
+    "mspAssignmentName": "[guid(parameters('rgName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2020-06-01",
+      "name": "[parameters('rgName')]",
+      "location": "Central US",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "name": "securityResourcesDeployment",
+      "resourceGroup": "[parameters('rgName')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/resourceGroups/', parameters('rgName'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+
+            "workspaces_log_anayltics_contraforce_name": {
+              "defaultValue": "log-anayltics-contraforce-01",
+              "type": "String"
+            },
+            "solutions_SecurityInsights_log_anayltics_contraforce__name": {
+              "defaultValue": "SecurityInsights(log-anayltics-contraforce-01)",
+              "type": "String"
+            }
+          },
+          "resources": [
+            {
+              "type": "microsoft.operationalinsights/workspaces",
+              "apiVersion": "2020-08-01",
+              "name": "[parameters('workspaces_log_anayltics_contraforce_name')]",
+              "location": "Central US",
+              "tags": {
+                "Environment": "Dev",
+                "Project": "Tutorial"
+              },
+              "properties": {
+                "sku": {
+                  "name": "pergb2018"
+                },
+                "retentionInDays": 30,
+                "workspaceCapping": {
+                  "dailyQuotaGb": -1
+                },
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+              }
+            },
+            {
+              "type": "Microsoft.OperationsManagement/solutions",
+              "apiVersion": "2015-11-01-preview",
+              "name": "[parameters('solutions_SecurityInsights_log_anayltics_contraforce__name')]",
+              "location": "Central US",
+              "dependsOn": [
+                "[resourceId('microsoft.operationalinsights/workspaces', parameters('workspaces_log_anayltics_contraforce_name'))]"
+              ],
+              "plan": {
+                "name": "SecurityInsights(log-anaylitcs-contraforce-10)",
+                "promotionCode": "",
+                "product": "OMSGallery/SecurityInsights",
+                "publisher": "Microsoft"
+              },
+              "properties": {
+                "workspaceResourceId": "[resourceId('microsoft.operationalinsights/workspaces', parameters('workspaces_log_anayltics_contraforce_name'))]",
+                "containedResources": []
+              }
+            }
+
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.ManagedServices/registrationDefinitions",
+      "apiVersion": "2019-06-01",
+      "name": "[variables('mspRegistrationName')]",
+      "properties": {
+        "registrationDefinitionName": "[parameters('mspOfferName')]",
+        "description": "[parameters('mspOfferDescription')]",
+        "managedByTenantId": "7a1854c0-403b-41a9-b8c4-55047cda8446",
+        "authorizations": [
+          {
+            "principalId": "a5daad5f-2b67-48ab-a6f3-29aa7c2f6372",
+            "roleDefinitionId": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+            "principalIdDisplayName": "Contributors"
+          },
+          {
+            "principalId": "92482805-a1e8-410d-a5f3-dde5ca3daf55",
+            "roleDefinitionId": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+            "principalIdDisplayName": "ContraForce Portal Contributor"
+          },
+          {
+            "principalId": "a5daad5f-2b67-48ab-a6f3-29aa7c2f6372",
+            "roleDefinitionId": "91c1777a-f3dc-4fae-b103-61d183457e46",
+            "principalIdDisplayName": "Managed Services Registration assignment Delete Role"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2018-05-01",
+      "name": "rgAssignment",
+      "resourceGroup": "[parameters('rgName')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('mspRegistrationName'))]",
+        "[resourceId('Microsoft.Resources/resourceGroups/', parameters('rgName'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {},
+          "resources": [
+            {
+              "type": "Microsoft.ManagedServices/registrationAssignments",
+              "apiVersion": "2019-06-01",
+              "name": "[variables('mspAssignmentName')]",
+              "properties": {
+                "registrationDefinitionId": "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('mspRegistrationName'))]"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}
